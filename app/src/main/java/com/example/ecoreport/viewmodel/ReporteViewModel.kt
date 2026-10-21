@@ -1,14 +1,15 @@
 package com.example.ecoreport.viewmodel
 
-import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ecoreport.data.ReporteEntity
+import com.example.ecoreport.model.FiltroReportes
 import com.example.ecoreport.repository.ReporteRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.WhileSubscribed
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -17,16 +18,15 @@ class ReporteViewModel (
     private val repository: ReporteRepository
 ): ViewModel() {
 
-    private val _categoriaSeleccionada = MutableStateFlow<String?>(null)
+    // Filtro APLICADO (cambia solo al presionar BUSCAR)
+    private val _filtro = MutableStateFlow(FiltroReportes())
 
-    val categoriaSeleccionada: StateFlow<String?> = _categoriaSeleccionada
+    val filtro: StateFlow<FiltroReportes> = _filtro.asStateFlow()
+
+    // Todos los reportes: lo usan Inicio y Estadísticas, no depende del filtro
     val reportes:
     StateFlow<List<ReporteEntity>> =
-        _categoriaSeleccionada
-            .flatMapLatest {
-                categoria ->
-                repository.obtenerPorCategoria(categoria)
-            }
+        repository.obtenerTodos()
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted
@@ -34,7 +34,23 @@ class ReporteViewModel (
                 initialValue = emptyList()
             )
 
-
+    // Reportes filtrados: lo usa la pantalla Reportes
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val reportesFiltrados:
+    StateFlow<List<ReporteEntity>> =
+        _filtro
+            .flatMapLatest { filtro ->
+                repository.filtrar(
+                    estado = filtro.estado,
+                    categoria = filtro.categoria
+                )
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted
+                    .WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
 
     fun insertar(reporte: ReporteEntity) {
         viewModelScope.launch {
@@ -54,7 +70,15 @@ class ReporteViewModel (
         }
     }
 
-    fun seleccionarCategoria(categoria: String?) {
-        _categoriaSeleccionada.value = categoria
+    fun buscar(
+        estado: String?,
+        categoria: String?
+    ) {
+        _filtro.value = FiltroReportes(
+            estado = estado,
+            categoria = categoria
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+        )
     }
 }

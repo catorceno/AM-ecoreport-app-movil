@@ -25,12 +25,25 @@ interface ReporteDao {
         """
             SELECT * 
             FROM reportes 
-            WHERE (:categoria IS NULL OR categoria = :categoria)
+            WHERE (:categoria IS NULL OR categoria LIKE '%' || :categoria || '%')
             ORDER BY id DESC
         """
     )
     fun obtenerPorCategoria(
         categoria: String?
+    ):
+            Flow<List<ReporteEntity>>
+
+    @Query(
+        """
+            SELECT * 
+            FROM reportes 
+            WHERE (:estado IS NULL OR estado = :estado)
+            ORDER BY id DESC
+        """
+    )
+    fun obtenerPorEstado(
+        estado: String?
     ):
             Flow<List<ReporteEntity>>
 
