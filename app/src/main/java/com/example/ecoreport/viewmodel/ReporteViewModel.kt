@@ -21,6 +21,7 @@ class ReporteViewModel (
     private val _categoriaSeleccionada = MutableStateFlow<String?>(null)
 
     private val _reportesRemotos = MutableStateFlow<List<ReporteDto>>(emptyList())
+    val reportesRemotos: StateFlow<List<ReporteDto>> = _reportesRemotos
     private val _cargando = MutableStateFlow(false)
     val cargando: StateFlow<Boolean> = _cargando
 
@@ -29,10 +30,10 @@ class ReporteViewModel (
 
     val categoriaSeleccionada: StateFlow<String?> = _categoriaSeleccionada
     val reportes:
-    StateFlow<List<ReporteEntity>> =
+            StateFlow<List<ReporteEntity>> =
         _categoriaSeleccionada
             .flatMapLatest {
-                categoria ->
+                    categoria ->
                 repository.obtenerPorCategoria(categoria)
             }
             .stateIn(
@@ -64,5 +65,20 @@ class ReporteViewModel (
 
     fun seleccionarCategoria(categoria: String?) {
         _categoriaSeleccionada.value = categoria
+    }
+
+    fun cargarReportesRemotos() {
+        viewModelScope.launch {
+            _cargando.value = true
+            _error.value = null
+            try {
+                _reportesRemotos.value =
+                    repository.obtenerReportesRemotos()
+            } catch (e: Exception) {
+                _error.value = "No se pudieron cargar los reportes"
+            } finally {
+                _cargando.value = false
+            }
+        }
     }
 }
